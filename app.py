@@ -8,11 +8,49 @@ import json
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Bio-Age Calculator", page_icon="🧬", layout="wide")
 
-# Custom CSS
+# Custom CSS for Background and UI
 st.markdown("""
 <style>
+    /* Gradient Background with much higher transparency (0.85 white layer) */
+    .stApp {
+        background: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), 
+                    url("https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+    
+    /* Clean up text colors to be black/dark grey for readability */
+    h1, h2, h3, p, span, label, .stMarkdown {
+        color: #1E1E1E !important;
+    }
+
     .stNumberInput div[data-baseweb="input"] { height: 45px; }
-    .stButton button { width: 100%; }
+    
+    /* Button Styling */
+    .stButton button { 
+        width: 100%; 
+        padding-left: 1px !important; 
+        padding-right: 1px !important;
+        font-size: 14px !important;
+        background-color: #f0f2f6;
+        color: #31333F;
+        border: 1px solid #d3d3d3;
+    }
+    
+    /* Style for the slider tracks to ensure they aren't red or hard to see */
+    .stSlider [data-baseweb="slider"] {
+        margin-bottom: 25px;
+    }
+
+    /* Make containers clean */
+    [data-testid="stExpander"], [data-testid="column"] {
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #E6E9EF;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -63,11 +101,12 @@ DEFAULT_STATE = {
     'age': 45.0, 'weight': 145.0, 'h_ft': 5, 'h_in': 10,
     'waist_in': 34.0, 'pct_bft': 18.0, 'sys': 115.0, 'dia': 75.0, 'pulse': 60.0,
     'vo2': 52.0, 'crp': 0.1, 'trig': 80.0, 'ldl': 90.0, 'hdl': 60.0,
-    'gluc': 88.0, 'alb': 4.5, 'iron': 100.0, 's1': "Walking", 'd1': 5,
-    's2': "Running", 'd2': 4, 's3': "None", 'd3': 0, 'run_pace': "8:00"
+    'gluc': 88.0, 'alb': 4.5, 'iron': 100.0, 's1': "Walking", 'd1': 5, 'i1': "Moderate",
+    's2': "Running", 'd2': 4, 'i2': "Vigorous", 's3': "None", 'd3': 0, 'i3': "Moderate",
+    'run_pace': "8:00"
 }
 
-# Ensure EVERYTHING in profile_data exists to prevent KeyError
+# Ensure st.session_state is initialized correctly
 if 'profile_data' not in st.session_state:
     st.session_state.profile_data = DEFAULT_STATE.copy()
 
@@ -89,13 +128,12 @@ with st.expander("👤 User Login / Load Profile", expanded=not st.session_state
             st.session_state.cur_initials = initials_input
             st.session_state.cur_birth_year = birth_year_input
             
-            # Clear input sync-keys to force re-initialization
-            for k in list(st.session_state.keys()):
-                if k.startswith("input_val_"): del st.session_state[k]
-                if k.startswith("wid_"): del st.session_state[k]
+            # Reset the input synchronization keys
+            for key in list(st.session_state.keys()):
+                if key.startswith("val_"):
+                    del st.session_state[key]
                 
             if data:
-                # Merge loaded data with defaults to ensure no missing keys
                 new_state = DEFAULT_STATE.copy()
                 new_state.update(data)
                 st.session_state.profile_data = new_state
@@ -108,40 +146,47 @@ with st.expander("👤 User Login / Load Profile", expanded=not st.session_state
                 st.session_state.user_loaded = True
                 st.rerun()
 
-# --- INPUT HELPER ---
-def multi_step_input(label, key, min_val, max_val, default_val, is_float=False):
-    sync_key = f"input_val_{key}"
-    if sync_key not in st.session_state:
-        # PULL FROM PROFILE DATA
-        val = st.session_state.profile_data.get(key, default_val)
-        st.session_state[sync_key] = float(val)
-    
-    st.write(f"**{label}**")
-    
-    # Large number input
-    curr_val = st.number_input(label, float(min_val), float(max_val), float(st.session_state[sync_key]), 
-                              label_visibility="collapsed", key=f"wid_{key}", step=0.1 if is_float else 1.0)
-    st.session_state[sync_key] = curr_val
+# --- INPUT HELPER (FIXED BUTTONS) ---
+def multi_step_input(label, key, min_val, max_val, step_small=0.5, step_large=5.0):
+    # This state persists the actual value entered
+    state_key = f"val_{key}"
+    if state_key not in st.session_state:
+        st.session_state[state_key] = float(st.session_state.profile_data.get(key, DEFAULT_STATE[key]))
 
-    # Buttons
+    st.write(f"**{label}**")
     c1, c2, c3, c4 = st.columns(4)
-    step_l = 5.0
-    step_s = 0.5 if is_float else 1.0
     
-    if c1.button(f"-{step_l}", key=f"btn_m5_{key}"):
-        st.session_state[sync_key] = max(float(min_val), round(st.session_state[sync_key] - step_l, 2))
+    # Button Labels
+    l1 = f"-{int(step_large) if step_large.is_integer() else step_large}"
+    l2 = f"-{int(step_small) if step_small.is_integer() else step_small}"
+    l3 = f"+{int(step_small) if step_small.is_integer() else step_small}"
+    l4 = f"+{int(step_large) if step_large.is_integer() else step_large}"
+
+    # We update the session state directly when buttons are clicked
+    if c1.button(l1, key=f"b1_{key}"):
+        st.session_state[state_key] = float(max(min_val, st.session_state[state_key] - step_large))
         st.rerun()
-    if c2.button(f"-{step_s}", key=f"btn_m1_{key}"):
-        st.session_state[sync_key] = max(float(min_val), round(st.session_state[sync_key] - step_s, 2))
+    if c2.button(l2, key=f"b2_{key}"):
+        st.session_state[state_key] = float(max(min_val, st.session_state[state_key] - step_small))
         st.rerun()
-    if c3.button(f"+{step_s}", key=f"btn_p1_{key}"):
-        st.session_state[sync_key] = min(float(max_val), round(st.session_state[sync_key] + step_s, 2))
+    if c3.button(l3, key=f"b3_{key}"):
+        st.session_state[state_key] = float(min(max_val, st.session_state[state_key] + step_small))
         st.rerun()
-    if c4.button(f"+{step_l}", key=f"btn_p5_{key}"):
-        st.session_state[sync_key] = min(float(max_val), round(st.session_state[sync_key] + step_l, 2))
+    if c4.button(l4, key=f"b4_{key}"):
+        st.session_state[state_key] = float(min(max_val, st.session_state[state_key] + step_large))
         st.rerun()
+
+    current_val = st.number_input(label, min_val, max_val, 
+                                 value=float(st.session_state[state_key]),
+                                 step=step_small,
+                                 label_visibility="collapsed",
+                                 key=f"num_{key}")
+    
+    # If the user typed a new value manually, update our internal state
+    if current_val != st.session_state[state_key]:
+        st.session_state[state_key] = current_val
         
-    return st.session_state[sync_key]
+    return st.session_state[state_key]
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -149,7 +194,7 @@ with st.sidebar:
     
     with st.expander("Vitals", expanded=True):
         chrono_age = st.number_input("Chronological Age", 18, 100, int(st.session_state.profile_data.get('age', 45)))
-        weight_lb = multi_step_input("Weight (lbs)", "weight", 80, 500, 145)
+        weight_lb = multi_step_input("Weight (lbs)", "weight", 80.0, 500.0, 1.0, 5.0)
         weight_kg = weight_lb * 0.453592
         
         st.write("**Height**")
@@ -161,11 +206,11 @@ with st.sidebar:
         bmi = weight_kg / ((height_cm/100)**2) if height_cm > 0 else 0
         st.caption(f"BMI: {bmi:.1f}")
         
-        waist_in = multi_step_input("Waist (in)", "waist_in", 20.0, 70.0, 34.0, is_float=True)
-        pct_bft = multi_step_input("Body Fat %", "pct_bft", 3.0, 60.0, 18.0, is_float=True)
-        sys_bp = multi_step_input("Systolic BP", "sys", 80, 200, 115)
-        dia_bp = multi_step_input("Diastolic BP", "dia", 40, 120, 75)
-        pulse = multi_step_input("Pulse", "pulse", 40, 150, 60)
+        waist_in = multi_step_input("Waist (in)", "waist_in", 20.0, 70.0, 0.5, 5.0)
+        pct_bft = multi_step_input("Body Fat %", "pct_bft", 3.0, 60.0, 0.5, 5.0)
+        sys_bp = multi_step_input("Systolic BP", "sys", 80.0, 200.0, 1.0, 5.0)
+        dia_bp = multi_step_input("Diastolic BP", "dia", 40.0, 120.0, 1.0, 5.0)
+        pulse = multi_step_input("Pulse", "pulse", 40.0, 150.0, 1.0, 5.0)
 
     with st.expander("Performance", expanded=True):
         vo2_max = st.slider("VO2 Max", 15.0, 85.0, float(st.session_state.profile_data.get('vo2', 52.0)))
@@ -185,13 +230,13 @@ with st.sidebar:
             walk_t_score = 6.0 / ((60.0 / run_min_mile) * 0.44704)
 
     with st.expander("🩺 Lab Markers"):
-        lab_crp = multi_step_input("CRP", "crp", 0.0, 15.0, 0.0, is_float=True)
-        lab_trig = multi_step_input("Triglycerides", "trig", 0, 500, 0)
-        lab_ldl = multi_step_input("LDL Chol", "ldl", 0, 350, 0)
-        lab_hdl = multi_step_input("HDL Chol", "hdl", 0, 150, 0)
-        lab_gluc = multi_step_input("Glucose", "gluc", 0, 300, 0)
-        lab_alb = multi_step_input("Albumin", "alb", 0.0, 6.0, 0.0, is_float=True)
-        lab_iron = multi_step_input("Iron", "iron", 0, 300, 0)
+        lab_crp = multi_step_input("CRP", "crp", 0.0, 15.0, 0.1, 1.0)
+        lab_trig = multi_step_input("Triglycerides", "trig", 0.0, 500.0, 1.0, 10.0)
+        lab_ldl = multi_step_input("LDL Chol", "ldl", 0.0, 350.0, 1.0, 10.0)
+        lab_hdl = multi_step_input("HDL Chol", "hdl", 0.0, 150.0, 1.0, 10.0)
+        lab_gluc = multi_step_input("Glucose", "gluc", 0.0, 300.0, 1.0, 10.0)
+        lab_alb = multi_step_input("Albumin", "alb", 0.0, 6.0, 0.1, 0.5)
+        lab_iron = multi_step_input("Iron", "iron", 0.0, 300.0, 1.0, 10.0)
 
 # --- MAIN AREA ---
 st.subheader("🏆 Physical Activity")
@@ -206,14 +251,19 @@ SPORTS_OPTIONS = ["None"] + [s.title() for s in DATASET_SPORTS]
 with col1_pa:
     s1 = st.selectbox("Activity 1", SPORTS_OPTIONS, index=SPORTS_OPTIONS.index(p_s1) if p_s1 in SPORTS_OPTIONS else 0)
     d1 = st.slider("Days/Week (A1)", 0, 7, int(st.session_state.profile_data.get('d1', 5)))
+    i1 = st.select_slider("Intensity (A1)", options=["Light", "Moderate", "Vigorous"], value=st.session_state.profile_data.get('i1', "Moderate"))
 with col2_pa:
     s2 = st.selectbox("Activity 2", SPORTS_OPTIONS, index=SPORTS_OPTIONS.index(p_s2) if p_s2 in SPORTS_OPTIONS else 0)
     d2 = st.slider("Days/Week (A2)", 0, 7, int(st.session_state.profile_data.get('d2', 4)))
+    i2 = st.select_slider("Intensity (A2)", options=["Light", "Moderate", "Vigorous"], value=st.session_state.profile_data.get('i2', "Vigorous"))
 with col3_pa:
     s3 = st.selectbox("Activity 3", SPORTS_OPTIONS, index=SPORTS_OPTIONS.index(p_s3) if p_s3 in SPORTS_OPTIONS else 0)
     d3 = st.slider("Days/Week (A3)", 0, 7, int(st.session_state.profile_data.get('d3', 0)))
+    i3 = st.select_slider("Intensity (A3)", options=["Light", "Moderate", "Vigorous"], value=st.session_state.profile_data.get('i3', "Moderate"))
 
-paq_val = min((d1*5 + d2*5 + d3*5) * 1.5, 30.0)
+# Calculate PAQ with Intensity Multiplier
+IM = {"Light": 1.0, "Moderate": 1.5, "Vigorous": 2.2}
+paq_val = min((d1*5*IM[i1] + d2*5*IM[i2] + d3*5*IM[i3]), 45.0)
 
 st.divider()
 c_calc, c_save = st.columns(2)
@@ -242,12 +292,15 @@ if c_calc.button("🚀 Calculate BIO-AGE", use_container_width=True):
                 if m: input_dict[m[0]] = 1.0
 
         df_in = pd.DataFrame([input_dict])[feature_names]
-        try: df_in = pd.DataFrame(scaler.transform(df_in), columns=feature_names)
-        except: pass
+        try:
+            df_in = pd.DataFrame(scaler.transform(df_in), columns=feature_names)
+        except:
+            pass
         
         bio_prediction = model.predict(df_in)[0]
         st.metric("Model Predicted Age", f"{bio_prediction:.1f} yrs", delta=f"{bio_prediction - chrono_age:.1f} yrs", delta_color="inverse")
-    else: st.error("Model assets not found.")
+    else:
+        st.error("Model assets not found.")
 
 if c_save.button("💾 Save Profile", use_container_width=True):
     if len(st.session_state.cur_initials) < 3:
@@ -258,8 +311,9 @@ if c_save.button("💾 Save Profile", use_container_width=True):
             'sys': sys_bp, 'dia': dia_bp, 'pulse': pulse, 'vo2': vo2_max, 
             'waist_in': waist_in, 'pct_bft': pct_bft, 'crp': lab_crp,
             'trig': lab_trig, 'ldl': lab_ldl, 'hdl': lab_hdl, 'gluc': lab_gluc,
-            'alb': lab_alb, 'iron': lab_iron, 's1': s1, 'd1': d1, 's2': s2, 'd2': d2,
-            's3': s3, 'd3': d3, 'run_pace': (sel_pace if perf_type != "Walking Speed (mph)" else "8:00")
+            'alb': lab_alb, 'iron': lab_iron, 's1': s1, 'd1': d1, 'i1': i1, 
+            's2': s2, 'd2': d2, 'i2': i2, 's3': s3, 'd3': d3, 'i3': i3,
+            'run_pace': (sel_pace if perf_type != "Walking Speed (mph)" else "8:00")
         }
         save_profile(current_save, st.session_state.cur_initials, st.session_state.cur_birth_year)
         st.success("Profile saved.")
