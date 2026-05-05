@@ -43,42 +43,56 @@ st.markdown("""
         color: #1e3a8a !important;
     }
 
-    /* Realistic 3D Buttons */
+    /* Uniform Keyboard-style Buttons */
     div.stButton > button {
-        background: linear-gradient(145deg, #e3f2fd, #bbdefb) !important;
-        color: #0d47a1 !important;
-        border: 1px solid #90caf9 !important;
-        border-radius: 6px !important;
-        padding: 8px 0 !important;
+        background: linear-gradient(145deg, #f8fafc, #e2e8f0) !important;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 8px !important;
+        padding: 5px 0 !important;
         font-weight: 600 !important;
-        font-size: 15px !important;
-        box-shadow: 0 4px 0 #64b5f6, 
-                    0 5px 10px rgba(0,0,0,0.1) !important;
-        transition: all 0.1s ease !important;
-        width: 100% !important;
-        height: 42px !important;
+        font-size: 14px !important;
+        box-shadow: 0 4px 0 #94a3b8, 
+                    0 5px 10px rgba(0,0,0,0.05) !important;
+        transition: all 0.05s ease !important;
+        width: 100% !important; /* Uniform width within column */
+        height: 44px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         white-space: nowrap !important;
+        text-transform: none !important;
     }
     
     div.stButton > button:hover {
-        background: linear-gradient(145deg, #bbdefb, #90caf9) !important;
-        box-shadow: 0 2px 0 #42a5f5, 
-                    0 3px 6px rgba(0,0,0,0.1) !important;
+        background: linear-gradient(145deg, #e2e8f0, #cbd5e1) !important;
+        box-shadow: 0 2px 0 #64748b, 
+                    0 3px 6px rgba(0,0,0,0.08) !important;
         transform: translateY(2px) !important;
     }
     
     div.stButton > button:active {
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.2) !important;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1) !important;
         transform: translateY(4px) !important;
+    }
+
+    /* Blue Accent for Action Buttons */
+    div.stButton > button[kind="primary"] {
+        background: linear-gradient(145deg, #3b82f6, #2563eb) !important;
+        color: white !important;
+        border: 1px solid #1d4ed8 !important;
+        box-shadow: 0 4px 0 #1e3a8a, 0 5px 10px rgba(0,0,0,0.2) !important;
     }
 
     /* Shaded state for disabled inputs */
     .shaded-input {
-        opacity: 0.5;
+        opacity: 0.4;
         filter: grayscale(100%);
+        pointer-events: none;
+        background: #f1f5f9;
+        padding: 10px;
+        border-radius: 8px;
+        margin: 5px 0;
     }
 
     [data-testid="stExpander"], [data-testid="column"], [data-testid="stVerticalBlock"] > div:has(div.stExpander) {
@@ -93,6 +107,14 @@ st.markdown("""
     div[data-baseweb="input"] {
         height: 42px !important;
         border-radius: 6px !important;
+    }
+
+    .recommendation-card {
+        background: #f0f9ff;
+        border-left: 5px solid #0ea5e9;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 4px 8px 8px 4px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -137,9 +159,11 @@ DEFAULT_STATE = {
     'gluc': 88.0, 'alb': 4.5, 'iron': 100.0, 's1': "Walking", 'd1': 5, 'i1': "Moderate",
     's2': "Running", 'd2': 4, 'i2': "Vigorous", 's3': "None", 'd3': 0, 'i3': "Moderate",
     'run_pace': "8:00",
-    'has_crp': True, 'has_trig': True, 'has_ldl': True, 'has_hdl': True,
-    'has_gluc': True, 'has_alb': True, 'has_iron': True
+    'has_crp': False, 'has_trig': False, 'has_ldl': False, 'has_hdl': False,
+    'has_gluc': False, 'has_alb': False, 'has_iron': False
 }
+
+MARKER_DEFAULTS = {'trig': 80.0, 'ldl': 90.0, 'hdl': 60.0, 'gluc': 88.0, 'crp': 0.1, 'alb': 4.5, 'iron': 100.0}
 
 if 'profile_data' not in st.session_state: st.session_state.profile_data = DEFAULT_STATE.copy()
 if 'user_loaded' not in st.session_state: st.session_state.user_loaded = False
@@ -179,14 +203,13 @@ def multi_step_input(label, key, min_val, max_val, step_small=0.5, step_large=5.
         st.session_state[key] = float(st.session_state.profile_data.get(key, DEFAULT_STATE.get(key, min_val)))
 
     if not enabled:
-        st.markdown(f"<div class='shaded-input'><strong>{label} (Omitted)</strong></div>", unsafe_allow_html=True)
-        st.caption("Value will use clinical average in calculation")
-        return None
+        st.markdown(f"<div class='shaded-input'><strong>{label} (Auto-Filled)</strong><br><small>Using clinical average: {MARKER_DEFAULTS.get(key, 'N/A')}</small></div>", unsafe_allow_html=True)
+        return float(MARKER_DEFAULTS.get(key, min_val))
 
     st.write(f"**{label}**")
     c1, c2, c3, c4 = st.columns(4)
     l1, l2, l3, l4 = f"-{int(step_large)}", f"-{step_small}", f"+{step_small}", f"+{int(step_large)}"
-    if not step_large.is_integer(): l1, l4 = f"-{step_large}", f"+{step_large}"
+    if not isinstance(step_large, int) and step_large % 1 != 0: l1, l4 = f"-{step_large}", f"+{step_large}"
 
     if c1.button(l1, key=f"btn1_{key}"): 
         st.session_state[key] = float(max(min_val, st.session_state[key] - step_large))
@@ -201,9 +224,7 @@ def multi_step_input(label, key, min_val, max_val, step_small=0.5, step_large=5.
         st.session_state[key] = float(min(max_val, st.session_state[key] + step_large))
         st.rerun()
 
-    # User requested + - in field to go up/down by 1
-    val = st.number_input(label, min_val, max_val, step=1.0, key=key, label_visibility="collapsed")
-    return val
+    return st.number_input(label, min_val, max_val, step=1.0, key=key, label_visibility="collapsed")
 
 # --- SIDEBAR inputs ---
 with st.sidebar:
@@ -224,7 +245,7 @@ with st.sidebar:
     st.divider()
     st.markdown("### 🩺 Lab Markers")
     def lab_toggle_input(label, key, m_key, min_v, max_v, s_s, s_l):
-        has_val = st.checkbox(f"Know my {label}?", value=st.session_state.profile_data.get(m_key, True), key=m_key)
+        has_val = st.checkbox(f"I have my {label} results", value=st.session_state.profile_data.get(m_key, False), key=m_key)
         val = multi_step_input(label, key, min_v, max_v, s_s, s_l, enabled=has_val)
         return val, has_val
 
@@ -257,13 +278,12 @@ with col3_pa:
 
 # --- CALCULATION ---
 st.divider()
-if st.button("🚀 CALCULATE BIOLOGICAL AGE", use_container_width=True):
+if st.button("🚀 CALCULATE BIOLOGICAL AGE", key="calc_btn", type="primary", use_container_width=True):
     model, scaler, feature_names = load_assets()
     if model:
         weight_kg = weight_lb * 0.453592
         height_cm = (h_ft * 30.48) + (h_in * 2.54)
-        bmi = weight_kg / ((height_cm/100)**2)
-        MARKER_DEFAULTS = {'trig': 80, 'ldl': 90, 'hdl': 60, 'gluc': 88, 'crp': 0.1, 'alb': 4.5, 'iron': 100}
+        bmi = weight_kg / ((height_cm/100)**2) if height_cm > 0 else 0
         
         input_dict = {f: 0.0 for f in feature_names}
         input_dict['bpsys'], input_dict['bpdia'] = sys_bp, dia_bp
@@ -271,22 +291,59 @@ if st.button("🚀 CALCULATE BIOLOGICAL AGE", use_container_width=True):
         input_dict['bmi'], input_dict['bmxpulse'] = bmi, pulse
         input_dict['waist'], input_dict['pct_bft'] = waist_in * 2.54, pct_bft
         
-        input_dict['crp'] = v_crp if h_crp else MARKER_DEFAULTS['crp']
-        input_dict['trig'] = v_trig if h_trig else MARKER_DEFAULTS['trig']
-        input_dict['ldl'] = v_ldl if h_ldl else MARKER_DEFAULTS['ldl']
-        input_dict['hdl'] = v_hdl if h_hdl else MARKER_DEFAULTS['hdl']
-        input_dict['gluc'] = v_gluc if h_gluc else MARKER_DEFAULTS['gluc']
-        input_dict['alb'] = v_alb if h_alb else MARKER_DEFAULTS['alb']
-        input_dict['iron'] = v_iron if h_iron else MARKER_DEFAULTS['iron']
+        input_dict['crp'] = v_crp
+        input_dict['trig'] = v_trig
+        input_dict['ldl'] = v_ldl
+        input_dict['hdl'] = v_hdl
+        input_dict['gluc'] = v_gluc
+        input_dict['alb'] = v_alb
+        input_dict['iron'] = v_iron
         
         df_in = pd.DataFrame([input_dict])[feature_names]
-        try: df_in = pd.DataFrame(scaler.transform(df_in), columns=feature_names)
-        except: pass
-        bio_prediction = model.predict(df_in)[0]
-        st.metric("Biological Age Estimate", f"{bio_prediction:.1f} yrs", delta=f"{bio_prediction - chrono_age:.1f} yrs", delta_color="inverse")
+        try: df_scaled = pd.DataFrame(scaler.transform(df_in), columns=feature_names)
+        except: df_scaled = df_in
+        
+        bio_prediction = model.predict(df_scaled)[0]
+        
+        # --- LONGEVITY ANALYSIS (SENSITIVITY) ---
+        impact_metrics = []
+        optimizable_features = {
+            'bpsys': (sys_bp - 10, "Lowering Systolic BP by 10 pts"),
+            'waist': (waist_in * 2.54 - 5.0, "Reducing Waist Circumference by 2 inches"),
+            'pct_bft': (pct_bft - 3.0, "Reducing Body Fat by 3%"),
+            'gluc': (v_gluc - 10, "Optimizing Blood Sugar (reduce 10 mg/dL)"),
+            'crp': (v_crp - 0.5, "Reducing Inflammation (CRP)"),
+            'hdl': (v_hdl + 10, "Increasing Good Cholesterol (HDL)")
+        }
+
+        for feat, (new_val, desc) in optimizable_features.items():
+            if feat in feature_names:
+                df_temp = df_in.copy()
+                df_temp[feat] = max(0, new_val)
+                try: df_temp_s = pd.DataFrame(scaler.transform(df_temp), columns=feature_names)
+                except: df_temp_s = df_temp
+                pred_temp = model.predict(df_temp_s)[0]
+                improvement = bio_prediction - pred_temp
+                if improvement > 0.1: impact_metrics.append((improvement, desc))
+        
+        impact_metrics = sorted(impact_metrics, key=lambda x: x[0], reverse=True)[:3]
+
+        # Results Display
+        st.balloons()
+        c1, c2 = st.columns(2)
+        c1.metric("Biological Age Estimate", f"{bio_prediction:.1f} yrs", delta=f"{bio_prediction - chrono_age:.1f} yrs", delta_color="inverse")
+        
+        with c2:
+            st.markdown("### 🎯 Longevity Insights")
+            if impact_metrics:
+                st.write("Top 3 actions to lower your biological age:")
+                for imp, desc in impact_metrics:
+                    st.markdown(f"""<div class="recommendation-card"><strong>-{imp:.2f} years</strong>: {desc}</div>""", unsafe_allow_html=True)
+            else:
+                st.write("Your metrics are optimized! Maintain your current routine.")
     else: st.error("Model assets missing.")
 
-if st.button("💾 SAVE THIS PROFILE", use_container_width=True):
+if st.button("💾 SAVE THIS PROFILE", key="save_btn", use_container_width=True):
     if len(st.session_state.cur_initials) == 3:
         final_save = {k: st.session_state[k] for k in DEFAULT_STATE.keys() if k in st.session_state}
         save_profile(final_save, st.session_state.cur_initials, st.session_state.cur_birth_year)
