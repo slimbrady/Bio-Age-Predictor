@@ -43,13 +43,20 @@ st.markdown("""
         color: #1e3a8a !important;
     }
 
-    /* Blue Slider Accent */
+    /* FORCED BLUE SLIDERS */
     div[data-testid="stSlider"] [data-testid="stThumb"] {
         background-color: #3b82f6 !important;
         border: 2px solid #1d4ed8 !important;
     }
+    div[data-testid="stSlider"] [data-val="true"] {
+        background-color: #3b82f6 !important;
+    }
     div[data-testid="stSlider"] [data-testid="stTrack"] {
         background-color: #dbeafe !important;
+    }
+    /* Material UI Slider blue check */
+    .st-at, .st-au, .st-av, .st-aw {
+        background-color: #3b82f6 !important;
     }
 
     /* Uniform Keyboard-style Buttons */
@@ -226,35 +233,35 @@ with st.sidebar:
     v_alb, h_alb = lab("Albumin", "alb", "has_alb", 0.0, 6.0, 0.1, 0.5)
     v_iron, h_iron = lab("Iron", "iron", "has_iron", 0.0, 300.0, 1.0, 10.0)
 
-st.subheader("🏆 Fitness & Mobility")
-col_f1, col_f2, col_f3 = st.columns(3)
-with col_f1:
-    v_walk = st.slider("Walking Speed (mph)", 1.5, 5.0, float(st.session_state.profile_data.get('walk_speed', 3.1)), 0.1)
-with col_f2:
-    p_run = st.select_slider("Running Pace (min/mi)", options=[f"{m}:{s:02d}" for m in range(5, 16) for s in [0, 30]], value=st.session_state.profile_data.get('run_pace', "9:00"))
+st.subheader("🏆 Fitness & Mobility Indicators")
+col_g1, col_g2, col_g3 = st.columns(3)
+with col_g1:
+    v_walk = st.slider("Walking Speed (mph)", 1.5, 5.0, float(st.session_state.profile_data.get('walk_speed', 3.1)), 0.1, key="walk_s")
+with col_g2:
+    p_run = st.select_slider("Running Pace (min/mi)", options=[f"{m}:{s:02d}" for m in range(5, 16) for s in [0, 30]], value=st.session_state.profile_data.get('run_pace', "9:00"), key="run_p")
     v_run = pace_to_mph(p_run)
-with col_f3:
-    v_vo2 = st.slider("VO2 Max", 15.0, 75.0, float(st.session_state.profile_data.get('vo2', 42.0)), 0.5)
+with col_g3:
+    v_vo2 = st.slider("VO2 Max Value", 15.0, 75.0, float(st.session_state.profile_data.get('vo2', 42.0)), 0.5, key="vo2_s")
 
 st.divider()
+st.subheader("🗓 Physical Activity")
 col1_pa, col2_pa, col3_pa = st.columns(3)
 SPORTS = ["None"] + sorted(["Walking", "Weight Lifting", "Bicycling", "Running", "Swimming", "Yoga", "Hiking", "Soccer"])
 with col1_pa:
     s1 = st.selectbox("Activity 1", SPORTS, index=0)
-    d1 = st.slider("Days/Wk 1", 0, 7, 5)
+    d1 = st.slider("Days/Wk 1", 0, 7, 5, key="d1_s")
 with col2_pa:
     s2 = st.selectbox("Activity 2", SPORTS, index=0)
-    d2 = st.slider("Days/Wk 2", 0, 7, 0)
+    d2 = st.slider("Days/Wk 2", 0, 7, 0, key="d2_s")
 with col3_pa:
     s3 = st.selectbox("Activity 3", SPORTS, index=0)
-    d3 = st.slider("Days/Wk 3", 0, 7, 0)
+    d3 = st.slider("Days/Wk 3", 0, 7, 0, key="d3_s")
 
 if st.button("🚀 CALCULATE BIOLOGICAL AGE", type="primary", use_container_width=True):
     model, scaler, feature_names = load_assets()
     if model:
         weight_kg, height_cm = weight_lb * 0.453592, (h_ft * 30.48) + (h_in * 2.54)
         bmi = weight_kg / ((height_cm/100)**2) if height_cm > 0 else 0
-        
         in_d = {f: 0.0 for f in feature_names}
         in_d.update({'bpsys': sys_bp, 'bpdia': dia_bp, 'bmxwt': weight_kg, 'bmxht': height_cm, 'bmi': bmi, 'bmxpulse': pulse, 'waist': waist_in*2.54, 'pct_bft': pct_bft, 'crp': v_crp, 'trig': v_trig, 'ldl': v_ldl, 'hdl': v_hdl, 'gluc': v_gluc, 'alb': v_alb, 'iron': v_iron})
         
@@ -263,7 +270,7 @@ if st.button("🚀 CALCULATE BIOLOGICAL AGE", type="primary", use_container_widt
         except: df_s = df_in
         
         pred = model.predict(df_s)[0]
-        st.balloons()
+        # BALLOONS REMOVED BY REQUEST
         c_res1, c_res2 = st.columns(2)
         c_res1.metric("Biological Age", f"{pred:.1f} yrs", f"{pred-chrono_age:.1f} vs Chrono", delta_color="inverse")
         
@@ -272,8 +279,8 @@ if st.button("🚀 CALCULATE BIOLOGICAL AGE", type="primary", use_container_widt
             impacts = [
                 (pred - model.predict(pd.DataFrame(scaler.transform(df_in.assign(waist=in_d['waist']-5.0)), columns=feature_names))[0], "Reduce waist by 2 inches"),
                 (pred - model.predict(pd.DataFrame(scaler.transform(df_in.assign(bpsys=sys_bp-10)), columns=feature_names))[0], "Lower Systolic BP by 10 pts"),
-                (1.2 if v_walk < 3.5 else 0.3, "Increase walking speed to 3.5+ mph (Major indicator)"),
-                (0.8 if v_vo2 < 45 else 0.2, "Improve VO2 Max by 5 points")
+                (1.5 if v_walk < 3.5 else 0.4, "Target Walking Speed: 3.5+ MPH"),
+                (0.9 if v_vo2 < 45 else 0.2, "Improve VO2 Max by 5 pts")
             ]
             for imp, desc in sorted(impacts, key=lambda x: x[0], reverse=True)[:3]:
                 if imp > 0.1: st.markdown(f'<div class="recommendation-card"><strong>-{imp:.1f} yr</strong>: {desc}</div>', unsafe_allow_html=True)
