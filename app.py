@@ -37,27 +37,30 @@ st.markdown("""
         text-align: center;
     }
 
-    h2, h3, [data-testid="stExpander"] label {
-        font-family: 'Lexend', sans-serif !important;
-        font-weight: 600 !important;
-        color: #1e3a8a !important;
-    }
-
-    /* FORCED BLUE SLIDERS */
+    /* FORCED BLUE SLIDERS - More thorough override */
     div[data-testid="stSlider"] [data-testid="stThumb"] {
         background-color: #3b82f6 !important;
         border: 2px solid #1d4ed8 !important;
     }
-    div[data-testid="stSlider"] [data-val="true"] {
+    div[data-testid="stSlider"] [data-val="true"] { 
         background-color: #3b82f6 !important;
     }
-    div[data-testid="stSlider"] [data-testid="stTrack"] {
-        background-color: #dbeafe !important;
-    }
-    /* Material UI Slider blue check */
-    .st-at, .st-au, .st-av, .st-aw {
+    div[data-testid="stSlider"] > div > div > div > div {
         background-color: #3b82f6 !important;
     }
+    div[data-testid="stSlider"] [role="slider"] {
+        background-color: #3b82f6 !important;
+    }
+
+    /* High-contrast Text Inputs */
+    input[type="number"], input[type="text"], div[data-baseweb="input"] {
+        background-color: #1e40af !important; /* Deep Navy Blue */
+        color: #ffffff !important; /* Pure White Text */
+        font-weight: 600 !important;
+        border: 1px solid #1d4ed8 !important;
+        border-radius: 6px !important;
+    }
+    input::placeholder { color: #cbd5e1 !important; }
 
     /* Uniform Keyboard-style Buttons */
     div.stButton > button {
@@ -68,8 +71,7 @@ st.markdown("""
         padding: 5px 0 !important;
         font-weight: 600 !important;
         font-size: 14px !important;
-        box-shadow: 0 4px 0 #94a3b8, 
-                    0 5px 10px rgba(0,0,0,0.05) !important;
+        box-shadow: 0 4px 0 #94a3b8, 0 5px 10px rgba(0,0,0,0.05) !important;
         transition: all 0.05s ease !important;
         width: 100% !important;
         height: 44px !important;
@@ -78,42 +80,20 @@ st.markdown("""
         justify-content: center !important;
         white-space: nowrap !important;
     }
-    
     div.stButton > button:hover {
         background: linear-gradient(145deg, #e2e8f0, #cbd5e1) !important;
         box-shadow: 0 2px 0 #64748b, 0 3px 6px rgba(0,0,0,0.08) !important;
         transform: translateY(2px) !important;
     }
-    
     div.stButton > button:active {
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.1) !important;
         transform: translateY(4px) !important;
     }
-
     div.stButton > button[kind="primary"] {
         background: linear-gradient(145deg, #3b82f6, #2563eb) !important;
         color: white !important;
         border: 1px solid #1d4ed8 !important;
         box-shadow: 0 4px 0 #1e3a8a, 0 5px 10px rgba(0,0,0,0.2) !important;
-    }
-
-    .shaded-input {
-        opacity: 0.4;
-        filter: grayscale(100%);
-        pointer-events: none;
-        background: #f1f5f9;
-        padding: 10px;
-        border-radius: 8px;
-        margin: 5px 0;
-    }
-
-    [data-testid="stExpander"], [data-testid="column"], [data-testid="stVerticalBlock"] > div:has(div.stExpander) {
-        background-color: rgba(255, 255, 255, 0.95);
-        border-radius: 12px;
-        padding: 15px;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-        border: 1px solid #f1f5f9;
     }
 
     .recommendation-card {
@@ -132,7 +112,7 @@ def pace_to_mph(p_str):
         m, s = map(int, p_str.split(':'))
         total_mins = m + (s / 60.0)
         return 60.0 / total_mins
-    except: return 6.67 # 9:00 default
+    except: return 6.67
 
 def get_user_file(initials, birth_year):
     if not initials or len(str(initials)) < 3: return None
@@ -169,7 +149,7 @@ DEFAULT_STATE = {
     'waist_in': 34.0, 'pct_bft': 18.0, 'sys': 115.0, 'dia': 75.0, 'pulse': 60.0,
     'vo2': 42.0, 'crp': 0.1, 'trig': 80.0, 'ldl': 90.0, 'hdl': 60.0, 'gluc': 88.0, 'alb': 4.5, 'iron': 100.0,
     's1': "Walking", 'd1': 5, 'i1': "Moderate",
-    's2': "Running", 'd2': 0, 'i2': "Vigorous",
+    's2': "None", 'd2': 0, 'i2': "Moderate",
     's3': "None", 'd3': 0, 'i3': "Moderate",
     'has_crp': False, 'has_trig': False, 'has_ldl': False, 'has_hdl': False,
     'has_gluc': False, 'has_alb': False, 'has_iron': False,
@@ -178,13 +158,12 @@ DEFAULT_STATE = {
 MARKER_DEFAULTS = {'trig': 80.0, 'ldl': 90.0, 'hdl': 60.0, 'gluc': 88.0, 'crp': 0.1, 'alb': 4.5, 'iron': 100.0}
 
 if 'profile_data' not in st.session_state: st.session_state.profile_data = DEFAULT_STATE.copy()
-if 'user_loaded' not in st.session_state: st.session_state.user_loaded = False
 if 'cur_initials' not in st.session_state: st.session_state.cur_initials = ""
 if 'cur_birth_year' not in st.session_state: st.session_state.cur_birth_year = 1980
 
 st.markdown("<h1>🧬 Biological Age Predictor</h1>", unsafe_allow_html=True)
 
-with st.expander("👤 User Profile", expanded=not st.session_state.user_loaded):
+with st.expander("👤 User Profile"):
     col_init, col_year = st.columns(2)
     i_in = col_init.text_input("Initials (3)", st.session_state.cur_initials, max_chars=3).upper()
     y_in = col_year.number_input("Birth Year", 1920, 2024, st.session_state.cur_birth_year)
@@ -193,13 +172,12 @@ with st.expander("👤 User Profile", expanded=not st.session_state.user_loaded)
             st.session_state.cur_initials, st.session_state.cur_birth_year = i_in, y_in
             data = load_profile(i_in, y_in)
             if data: st.session_state.profile_data.update(data)
-            st.session_state.user_loaded = True
             st.rerun()
 
 def multi_step_input(label, key, min_val, max_val, step_small=0.5, step_large=5.0, enabled=True):
     if key not in st.session_state: st.session_state[key] = float(st.session_state.profile_data.get(key, min_val))
     if not enabled:
-        st.markdown(f"<div class='shaded-input'><strong>{label} (Auto)</strong><br><small>Clinical: {MARKER_DEFAULTS.get(key, 'N/A')}</small></div>", unsafe_allow_html=True)
+        st.write(f"**{label}** (Auto)")
         return float(MARKER_DEFAULTS.get(key, min_val))
     st.write(f"**{label}**")
     c1, c2, c3, c4 = st.columns(4)
@@ -212,75 +190,55 @@ def multi_step_input(label, key, min_val, max_val, step_small=0.5, step_large=5.
 with st.sidebar:
     st.markdown("### 📋 Vitals")
     chrono_age = st.number_input("Age", 18, 100, int(st.session_state.profile_data.get('age', 45)))
-    weight_lb = multi_step_input("Weight (lbs)", "weight", 80.0, 500.0, 1.0, 5.0)
+    w_lb = multi_step_input("Weight (lbs)", "weight", 80.0, 500.0, 1.0, 5.0)
     h_ft = st.selectbox("Feet", range(4, 9), index=int(st.session_state.profile_data.get('h_ft', 5)-4))
     h_in = st.selectbox("Inches", range(12), index=int(st.session_state.profile_data.get('h_in', 10)))
-    waist_in = multi_step_input("Waist (in)", "waist_in", 20.0, 70.0, 0.5, 5.0)
-    pct_bft = multi_step_input("Body Fat %", "pct_bft", 3.0, 60.0, 0.5, 5.0)
-    sys_bp = multi_step_input("Systolic BP", "sys", 80.0, 200.0, 1.0, 5.0)
-    dia_bp = multi_step_input("Diastolic BP", "dia", 40.0, 120.0, 1.0, 5.0)
-    pulse = multi_step_input("Pulse", "pulse", 40.0, 150.0, 1.0, 5.0)
+    waist = multi_step_input("Waist (in)", "waist_in", 20.0, 70.0, 0.5, 5.0)
+    bft = multi_step_input("Body Fat %", "pct_bft", 3.0, 60.0, 0.5, 5.0)
+    sys = multi_step_input("Systolic BP", "sys", 80.0, 200.0, 1.0, 5.0)
+    dia = multi_step_input("Diastolic BP", "dia", 40.0, 120.0, 1.0, 5.0)
+    pul = multi_step_input("Pulse", "pulse", 40.0, 150.0, 1.0, 5.0)
     st.divider()
     st.markdown("### 🩺 Labs")
-    def lab(l, k, mk, mi, ma, ss, sl):
+    def lb(l, k, mk):
         h = st.checkbox(f"Have {l}?", st.session_state.profile_data.get(mk, False), key=mk)
-        return multi_step_input(l, k, mi, ma, ss, sl, enabled=h), h
-    v_crp, h_crp = lab("CRP", "crp", "has_crp", 0.0, 15.0, 0.1, 1.0)
-    v_trig, h_trig = lab("Trig", "trig", "has_trig", 0.0, 500.0, 1.0, 10.0)
-    v_ldl, h_ldl = lab("LDL", "ldl", "has_ldl", 0.0, 350.0, 1.0, 10.0)
-    v_hdl, h_hdl = lab("HDL", "hdl", "has_hdl", 0.0, 150.0, 1.0, 10.0)
-    v_gluc, h_gluc = lab("Glucose", "gluc", "has_gluc", 0.0, 300.0, 1.0, 10.0)
-    v_alb, h_alb = lab("Albumin", "alb", "has_alb", 0.0, 6.0, 0.1, 0.5)
-    v_iron, h_iron = lab("Iron", "iron", "has_iron", 0.0, 300.0, 1.0, 10.0)
+        return multi_step_input(l, k, 0.0, 500.0, 1.0, 10.0, enabled=h), h
+    v_crp, h_crp = lb("CRP", "crp", "has_crp")
+    v_trig, h_trig = lb("Trig", "trig", "has_trig")
+    v_ldl, h_ldl = lb("LDL", "ldl", "has_ldl")
+    v_hdl, h_hdl = lb("HDL", "hdl", "has_hdl")
+    v_gluc, h_gluc = lb("Glucose", "gluc", "has_gluc")
+    v_alb, h_alb = lb("Albumin", "alb", "has_alb")
+    v_iron, h_iron = lb("Iron", "iron", "has_iron")
 
 st.subheader("🏆 Fitness & Mobility Indicators")
 col_g1, col_g2, col_g3 = st.columns(3)
-with col_g1:
-    v_walk = st.slider("Walking Speed (mph)", 1.5, 5.0, float(st.session_state.profile_data.get('walk_speed', 3.1)), 0.1, key="walk_s")
-with col_g2:
-    p_run = st.select_slider("Running Pace (min/mi)", options=[f"{m}:{s:02d}" for m in range(5, 16) for s in [0, 30]], value=st.session_state.profile_data.get('run_pace', "9:00"), key="run_p")
-    v_run = pace_to_mph(p_run)
-with col_g3:
-    v_vo2 = st.slider("VO2 Max Value", 15.0, 75.0, float(st.session_state.profile_data.get('vo2', 42.0)), 0.5, key="vo2_s")
-
-st.divider()
-st.subheader("🗓 Physical Activity")
-col1_pa, col2_pa, col3_pa = st.columns(3)
-SPORTS = ["None"] + sorted(["Walking", "Weight Lifting", "Bicycling", "Running", "Swimming", "Yoga", "Hiking", "Soccer"])
-with col1_pa:
-    s1 = st.selectbox("Activity 1", SPORTS, index=0)
-    d1 = st.slider("Days/Wk 1", 0, 7, 5, key="d1_s")
-with col2_pa:
-    s2 = st.selectbox("Activity 2", SPORTS, index=0)
-    d2 = st.slider("Days/Wk 2", 0, 7, 0, key="d2_s")
-with col3_pa:
-    s3 = st.selectbox("Activity 3", SPORTS, index=0)
-    d3 = st.slider("Days/Wk 3", 0, 7, 0, key="d3_s")
+with col_g1: v_walk = st.slider("Walking Speed (mph)", 1.5, 5.0, float(st.session_state.profile_data.get('walk_speed', 3.1)), 0.1, key="walk_sl")
+with col_g2: p_run = st.select_slider("Running Pace (min/mi)", options=[f"{m}:{s:02d}" for m in range(5, 16) for s in [0, 30]], value="9:00", key="run_sl")
+with col_g3: v_vo2 = st.slider("VO2 Max Value", 15.0, 75.0, float(st.session_state.profile_data.get('vo2', 42.0)), 0.5, key="vo2_sl")
 
 if st.button("🚀 CALCULATE BIOLOGICAL AGE", type="primary", use_container_width=True):
     model, scaler, feature_names = load_assets()
     if model:
-        weight_kg, height_cm = weight_lb * 0.453592, (h_ft * 30.48) + (h_in * 2.54)
-        bmi = weight_kg / ((height_cm/100)**2) if height_cm > 0 else 0
         in_d = {f: 0.0 for f in feature_names}
-        in_d.update({'bpsys': sys_bp, 'bpdia': dia_bp, 'bmxwt': weight_kg, 'bmxht': height_cm, 'bmi': bmi, 'bmxpulse': pulse, 'waist': waist_in*2.54, 'pct_bft': pct_bft, 'crp': v_crp, 'trig': v_trig, 'ldl': v_ldl, 'hdl': v_hdl, 'gluc': v_gluc, 'alb': v_alb, 'iron': v_iron})
+        w_kg, h_cm = w_lb * 0.453592, (h_ft * 30.48) + (h_in * 2.54)
+        in_d.update({'bpsys': sys, 'bpdia': dia, 'bmxwt': w_kg, 'bmxht': h_cm, 'bmi': w_kg/((h_cm/100)**2), 'bmxpulse': pul, 'waist': waist*2.54, 'pct_bft': bft, 'crp': v_crp, 'trig': v_trig, 'ldl': v_ldl, 'hdl': v_hdl, 'gluc': v_gluc, 'alb': v_alb, 'iron': v_iron})
         
-        df_in = pd.DataFrame([in_d])[feature_names]
-        try: df_s = pd.DataFrame(scaler.transform(df_in), columns=feature_names)
-        except: df_s = df_in
+        def get_pred(data_dict):
+            df = pd.DataFrame([data_dict])[feature_names]
+            return model.predict(pd.DataFrame(scaler.transform(df), columns=feature_names))[0]
+
+        pred = get_pred(in_d)
+        c1, c2 = st.columns(2)
+        c1.metric("Biological Age", f"{pred:.1f} yrs", f"{pred-chrono_age:.1f} vs Chrono", delta_color="inverse")
         
-        pred = model.predict(df_s)[0]
-        # BALLOONS REMOVED BY REQUEST
-        c_res1, c_res2 = st.columns(2)
-        c_res1.metric("Biological Age", f"{pred:.1f} yrs", f"{pred-chrono_age:.1f} vs Chrono", delta_color="inverse")
-        
-        with c_res2:
+        with c2:
             st.markdown("### 🎯 Longevity Insights")
-            impacts = [
-                (pred - model.predict(pd.DataFrame(scaler.transform(df_in.assign(waist=in_d['waist']-5.0)), columns=feature_names))[0], "Reduce waist by 2 inches"),
-                (pred - model.predict(pd.DataFrame(scaler.transform(df_in.assign(bpsys=sys_bp-10)), columns=feature_names))[0], "Lower Systolic BP by 10 pts"),
+            imp = [
+                (pred - get_pred({**in_d, 'waist': (waist-2)*2.54}), "Reduce waist by 2 inches"),
+                (pred - get_pred({**in_d, 'bpsys': sys-10}), "Lower Systolic BP by 10 pts"),
                 (1.5 if v_walk < 3.5 else 0.4, "Target Walking Speed: 3.5+ MPH"),
                 (0.9 if v_vo2 < 45 else 0.2, "Improve VO2 Max by 5 pts")
             ]
-            for imp, desc in sorted(impacts, key=lambda x: x[0], reverse=True)[:3]:
-                if imp > 0.1: st.markdown(f'<div class="recommendation-card"><strong>-{imp:.1f} yr</strong>: {desc}</div>', unsafe_allow_html=True)
+            for val, desc in sorted(imp, key=lambda x: x[0], reverse=True)[:3]:
+                if val > 0.1: st.markdown(f'<div class="recommendation-card"><strong>-{val:.1f} yr</strong>: {desc}</div>', unsafe_allow_html=True)
