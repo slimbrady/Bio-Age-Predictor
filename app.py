@@ -6,53 +6,91 @@ import os
 import json
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="Bio-Age Calculator", page_icon="🧬", layout="wide")
+st.set_page_config(page_title="Bio-Age Predictor", page_icon="🧬", layout="wide")
 
-# Custom CSS for Background and 3D Buttons
+# Custom CSS for Realistic Buttons and Beautiful Typography
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Lexend:wght@400;600&display=swap');
+
     .stApp {
-        background: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), 
-                    url("https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80");
+        background: linear-gradient(rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.88)), 
+                    url("https://images.unsplash.com/photo-1541534741688-6078c64b5903?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
     }
     
-    h1, h2, h3, p, span, label, .stMarkdown {
-        color: #1E1E1E !important;
+    /* Typography Overhaul */
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif !important;
+        color: #1a1a1a !important;
     }
 
-    /* 3D Light Blue Button Style */
+    h1 {
+        font-family: 'Lexend', sans-serif !important;
+        font-size: 3rem !important;
+        font-weight: 700 !important;
+        background: linear-gradient(90deg, #1e3a8a, #3b82f6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 2rem !important;
+        text-align: center;
+    }
+
+    h2, h3, [data-testid="stExpander"] label {
+        font-family: 'Lexend', sans-serif !important;
+        font-weight: 600 !important;
+        color: #1e3a8a !important;
+    }
+
+    /* Realistic 3D Buttons */
     div.stButton > button {
-        background-color: #e1f5fe !important;
-        color: #01579b !important;
-        border: 1px solid #b3e5fc !important;
-        border-radius: 8px !important;
-        padding: 0.5rem !important;
-        font-weight: bold !important;
-        box-shadow: 0 4px #81d4fa !important;
+        background: linear-gradient(145deg, #e3f2fd, #bbdefb) !important;
+        color: #0d47a1 !important;
+        border: 1px solid #90caf9 !important;
+        border-radius: 6px !important;
+        padding: 8px 0 !important;
+        font-weight: 600 !important;
+        font-size: 15px !important;
+        box-shadow: 0 4px 0 #64b5f6, 
+                    0 5px 10px rgba(0,0,0,0.1) !important;
         transition: all 0.1s ease !important;
         width: 100% !important;
+        height: 42px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
     }
     
     div.stButton > button:hover {
-        background-color: #b3e5fc !important;
-        box-shadow: 0 2px #4fc3f7 !important;
+        background: linear-gradient(145deg, #bbdefb, #90caf9) !important;
+        box-shadow: 0 2px 0 #42a5f5, 
+                    0 3px 6px rgba(0,0,0,0.1) !important;
         transform: translateY(2px) !important;
     }
     
     div.stButton > button:active {
-        box-shadow: 0 0 #0288d1 !important;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.2) !important;
         transform: translateY(4px) !important;
     }
 
-    [data-testid="stExpander"], [data-testid="column"] {
-        background-color: rgba(255, 255, 255, 0.9);
-        border-radius: 10px;
-        padding: 10px;
-        margin-bottom: 10px;
-        border: 1px solid #E6E9EF;
+    /* Clean Card Sections */
+    [data-testid="stExpander"], [data-testid="column"], [data-testid="stVerticalBlock"] > div:has(div.stExpander) {
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+        border: 1px solid #f1f5f9;
+    }
+
+    /* Number Input Height Fix */
+    div[data-baseweb="input"] {
+        height: 42px !important;
+        border-radius: 6px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -105,23 +143,26 @@ if 'cur_initials' not in st.session_state: st.session_state.cur_initials = ""
 if 'cur_birth_year' not in st.session_state: st.session_state.cur_birth_year = 1980
 
 # --- HEADER ---
-st.title("🧬 Biological Age Predictor")
+st.markdown("<h1>🧬 Biological Age Predictor</h1>", unsafe_allow_html=True)
 
 # --- LOGIN SECTION ---
-with st.expander("👤 User Login / Load Profile", expanded=not st.session_state.user_loaded):
+with st.expander("👤 User Login / Profile Management", expanded=not st.session_state.user_loaded):
     col_init, col_year = st.columns(2)
-    initials_input = col_init.text_input("Initials (3 characters)", value=st.session_state.cur_initials, max_chars=3).upper()
+    initials_input = col_init.text_input("Initials (3 chars)", value=st.session_state.cur_initials, max_chars=3).upper()
     birth_year_input = col_year.number_input("Year of Birth", 1920, 2024, value=st.session_state.cur_birth_year)
     
-    if st.button("Load Data"):
+    if st.button("Load Saved Profile"):
         if len(initials_input) < 3:
-            st.error("Enter 3 initials.")
+            st.error("Please enter exactly 3 initials.")
         else:
             data = load_profile(initials_input, birth_year_input)
             st.session_state.cur_initials = initials_input
             st.session_state.cur_birth_year = birth_year_input
             if data:
                 st.session_state.profile_data.update(data)
+                # Sync session state items
+                for k, v in data.items():
+                    if k in st.session_state: st.session_state[k] = v
                 st.session_state.user_loaded = True
                 st.rerun()
             else:
@@ -131,19 +172,16 @@ with st.expander("👤 User Login / Load Profile", expanded=not st.session_state
 
 # --- INPUT HELPER WITH ROBUST STEP LOGIC ---
 def multi_step_input(label, key, min_val, max_val, step_small=0.5, step_large=5.0):
-    # Ensure current value is in session state for cross-widget syncing
     if key not in st.session_state:
         st.session_state[key] = float(st.session_state.profile_data.get(key, DEFAULT_STATE.get(key, min_val)))
 
     st.write(f"**{label}**")
     c1, c2, c3, c4 = st.columns(4)
     
-    # Button Labels
-    l1, l2, l3, l4 = f"-{step_large}", f"-{step_small}", f"+{step_small}", f"+{step_large}"
-    if step_large.is_integer(): l1, l4 = f"-{int(step_large)}", f"+{int(step_large)}"
-    if step_small.is_integer(): l2, l3 = f"-{int(step_small)}", f"+{int(step_small)}"
+    # Use clean labels without vertical stacking
+    l1, l2, l3, l4 = f"-{int(step_large)}", f"-{step_small}", f"+{step_small}", f"+{int(step_large)}"
+    if not step_large.is_integer(): l1, l4 = f"-{step_large}", f"+{step_large}"
 
-    # Update logic
     if c1.button(l1, key=f"btn1_{key}"): 
         st.session_state[key] = float(max(min_val, st.session_state[key] - step_large))
         st.rerun()
@@ -157,14 +195,13 @@ def multi_step_input(label, key, min_val, max_val, step_small=0.5, step_large=5.
         st.session_state[key] = float(min(max_val, st.session_state[key] + step_large))
         st.rerun()
 
-    # The actual number input uses the same key
     val = st.number_input(label, min_val, max_val, step=step_small, key=key, label_visibility="collapsed")
     return val
 
 # --- SIDEBAR inputs ---
 with st.sidebar:
-    st.header("📋 Profile")
-    with st.expander("Vitals", expanded=True):
+    st.markdown("### 📋 Primary Vitals")
+    with st.container():
         chrono_age = st.number_input("Chronological Age", 18, 100, int(st.session_state.profile_data.get('age', 45)))
         weight_lb = multi_step_input("Weight (lbs)", "weight", 80.0, 500.0, 1.0, 5.0)
         
@@ -178,7 +215,8 @@ with st.sidebar:
         dia_bp = multi_step_input("Diastolic BP", "dia", 40.0, 120.0, 1.0, 5.0)
         pulse = multi_step_input("Pulse", "pulse", 40.0, 150.0, 1.0, 5.0)
 
-    with st.expander("Labs"):
+    st.markdown("### 🩺 Lab Markers")
+    with st.container():
         lab_crp = multi_step_input("CRP", "crp", 0.0, 15.0, 0.1, 1.0)
         lab_trig = multi_step_input("Triglycerides", "trig", 0.0, 500.0, 1.0, 10.0)
         lab_ldl = multi_step_input("LDL", "ldl", 0.0, 350.0, 1.0, 10.0)
@@ -188,30 +226,29 @@ with st.sidebar:
         lab_iron = multi_step_input("Iron", "iron", 0.0, 300.0, 1.0, 10.0)
 
 # --- PHYSICAL ACTIVITY ---
-st.subheader("🏆 Physical Activity")
+st.subheader("🏆 Physical Activity & Fitness")
 col1, col2, col3 = st.columns(3)
 DATASET_SPORTS = sorted(["BASKETBALL", "GARDENING", "YARD WORK", "WALKING", "WEIGHT LIFTING", "BICYCLING", "RUNNING", "AEROBICS", "PUSH-UPS", "FOOTBALL", "ROLLERBLADING", "BOWLING", "TENNIS", "DANCE", "SOCCER", "JOGGING", "STAIR CLIMBING", "SIT-UPS", "ROPE JUMPING", "HIKING", "SWIMMING", "BOXING", "MARTIAL ARTS", "GOLF", "VOLLEYBALL", "FISHING", "BASEBALL", "STRETCHING", "FRISBEE", "YOGA", "CHEERLEADING", "RACQUETBALL", "WRESTLING", "SOFTBALL", "HOCKEY", "TREADMILL", "SKIING", "SKATING", "SURFING", "SKATEBOARDING"])
 SPORTS_OPTIONS = ["None"] + [s.title() for s in DATASET_SPORTS]
 
 with col1:
     s1 = st.selectbox("Activity 1", SPORTS_OPTIONS, key="s1")
-    d1 = st.slider("Days/Week (1)", 0, 7, int(st.session_state.profile_data.get('d1', 5)))
+    d1 = st.slider("Days/Week (1)", 0, 7, int(st.session_state.get('d1', 5)))
     i1 = st.select_slider("Intensity (1)", ["Light", "Moderate", "Vigorous"], value="Moderate")
 with col2:
     s2 = st.selectbox("Activity 2", SPORTS_OPTIONS, key="s2")
-    d2 = st.slider("Days/Week (2)", 0, 7, int(st.session_state.profile_data.get('d2', 0)))
+    d2 = st.slider("Days/Week (2)", 0, 7, int(st.session_state.get('d2', 0)))
     i2 = st.select_slider("Intensity (2)", ["Light", "Moderate", "Vigorous"], value="Moderate")
 with col3:
     s3 = st.selectbox("Activity 3", SPORTS_OPTIONS, key="s3")
-    d3 = st.slider("Days/Week (3)", 0, 7, int(st.session_state.profile_data.get('d3', 0)))
+    d3 = st.slider("Days/Week (3)", 0, 7, int(st.session_state.get('d3', 0)))
     i3 = st.select_slider("Intensity (3)", ["Light", "Moderate", "Vigorous"], value="Moderate")
 
 # --- CALCULATION ---
 st.divider()
-if st.button("🚀 CALCULATE BIO-AGE", use_container_width=True):
+if st.button("🚀 CALCULATE BIOLOGICAL AGE", use_container_width=True):
     model, scaler, feature_names = load_assets()
     if model:
-        # Simplified mapping for demonstration
         weight_kg = weight_lb * 0.453592
         height_cm = (h_ft * 30.48) + (h_in * 2.54)
         bmi = weight_kg / ((height_cm/100)**2)
@@ -222,17 +259,22 @@ if st.button("🚀 CALCULATE BIO-AGE", use_container_width=True):
         input_dict['bmxwt'] = weight_kg
         input_dict['bmxht'] = height_cm
         input_dict['bmi'] = bmi
+        input_dict['bmxpulse'] = pulse
+        input_dict['waist'] = waist_in * 2.54
+        input_dict['pct_bft'] = pct_bft
         
         df_in = pd.DataFrame([input_dict])[feature_names]
         try: df_in = pd.DataFrame(scaler.transform(df_in), columns=feature_names)
         except: pass
         
         bio_prediction = model.predict(df_in)[0]
-        st.metric("Biological Age", f"{bio_prediction:.1f} yrs", delta=f"{bio_prediction - chrono_age:.1f} yrs", delta_color="inverse")
+        st.metric("Biological Age Estimate", f"{bio_prediction:.1f} yrs", delta=f"{bio_prediction - chrono_age:.1f} yrs", delta_color="inverse")
     else:
         st.error("Model assets missing.")
 
-if st.button("💾 SAVE PROFILE", use_container_width=True):
+if st.button("💾 SAVE THIS PROFILE", use_container_width=True):
     if len(st.session_state.cur_initials) == 3:
-        save_profile(st.session_state, st.session_state.cur_initials, st.session_state.cur_birth_year)
-        st.success("Saved!")
+        # Save current state
+        final_save = {k: v for k, v in st.session_state.items() if k in DEFAULT_STATE}
+        save_profile(final_save, st.session_state.cur_initials, st.session_state.cur_birth_year)
+        st.success(f"Profile for {st.session_state.cur_initials} saved successfully!")
