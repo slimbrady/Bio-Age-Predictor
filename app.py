@@ -21,7 +21,6 @@ st.markdown("""
         background-attachment: fixed;
     }
     
-    /* Typography Overhaul */
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif !important;
         color: #1a1a1a !important;
@@ -62,7 +61,6 @@ st.markdown("""
         align-items: center !important;
         justify-content: center !important;
         white-space: nowrap !important;
-        overflow: hidden !important;
     }
     
     div.stButton > button:hover {
@@ -77,7 +75,12 @@ st.markdown("""
         transform: translateY(4px) !important;
     }
 
-    /* Clean Card Sections */
+    /* Shaded state for disabled inputs */
+    .shaded-input {
+        opacity: 0.5;
+        filter: grayscale(100%);
+    }
+
     [data-testid="stExpander"], [data-testid="column"], [data-testid="stVerticalBlock"] > div:has(div.stExpander) {
         background-color: rgba(255, 255, 255, 0.95);
         border-radius: 12px;
@@ -87,7 +90,6 @@ st.markdown("""
         border: 1px solid #f1f5f9;
     }
 
-    /* Number Input Height Fix */
     div[data-baseweb="input"] {
         height: 42px !important;
         border-radius: 6px !important;
@@ -134,7 +136,9 @@ DEFAULT_STATE = {
     'vo2': 52.0, 'crp': 0.1, 'trig': 80.0, 'ldl': 90.0, 'hdl': 60.0,
     'gluc': 88.0, 'alb': 4.5, 'iron': 100.0, 's1': "Walking", 'd1': 5, 'i1': "Moderate",
     's2': "Running", 'd2': 4, 'i2': "Vigorous", 's3': "None", 'd3': 0, 'i3': "Moderate",
-    'run_pace': "8:00"
+    'run_pace': "8:00",
+    'has_crp': True, 'has_trig': True, 'has_ldl': True, 'has_hdl': True,
+    'has_gluc': True, 'has_alb': True, 'has_iron': True
 }
 
 if 'profile_data' not in st.session_state: st.session_state.profile_data = DEFAULT_STATE.copy()
@@ -160,7 +164,6 @@ with st.expander("👤 User Login / Profile Management", expanded=not st.session
             st.session_state.cur_birth_year = birth_year_input
             if data:
                 st.session_state.profile_data.update(data)
-                # Sync session state items
                 for k, v in data.items():
                     if k in st.session_state: st.session_state[k] = v
                 st.session_state.user_loaded = True
@@ -171,14 +174,17 @@ with st.expander("👤 User Login / Profile Management", expanded=not st.session
                 st.rerun()
 
 # --- INPUT HELPER WITH ROBUST STEP LOGIC ---
-def multi_step_input(label, key, min_val, max_val, step_small=0.5, step_large=5.0):
+def multi_step_input(label, key, min_val, max_val, step_small=0.5, step_large=5.0, enabled=True):
     if key not in st.session_state:
         st.session_state[key] = float(st.session_state.profile_data.get(key, DEFAULT_STATE.get(key, min_val)))
 
+    if not enabled:
+        st.markdown(f"<div class='shaded-input'><strong>{label} (Omitted)</strong></div>", unsafe_allow_html=True)
+        st.caption("Value will use clinical average in calculation")
+        return None
+
     st.write(f"**{label}**")
     c1, c2, c3, c4 = st.columns(4)
-    
-    # Use clean labels without vertical stacking
     l1, l2, l3, l4 = f"-{int(step_large)}", f"-{step_small}", f"+{step_small}", f"+{int(step_large)}"
     if not step_large.is_integer(): l1, l4 = f"-{step_large}", f"+{step_large}"
 
@@ -195,51 +201,56 @@ def multi_step_input(label, key, min_val, max_val, step_small=0.5, step_large=5.
         st.session_state[key] = float(min(max_val, st.session_state[key] + step_large))
         st.rerun()
 
-    val = st.number_input(label, min_val, max_val, step=step_small, key=key, label_visibility="collapsed")
+    # User requested + - in field to go up/down by 1
+    val = st.number_input(label, min_val, max_val, step=1.0, key=key, label_visibility="collapsed")
     return val
 
 # --- SIDEBAR inputs ---
 with st.sidebar:
     st.markdown("### 📋 Primary Vitals")
-    with st.container():
-        chrono_age = st.number_input("Chronological Age", 18, 100, int(st.session_state.profile_data.get('age', 45)))
-        weight_lb = multi_step_input("Weight (lbs)", "weight", 80.0, 500.0, 1.0, 5.0)
-        
-        st.write("**Height**")
-        h_ft = st.selectbox("Feet", range(4, 9), index=(int(st.session_state.profile_data.get('h_ft', 5)) - 4))
-        h_in = st.selectbox("Inches", range(12), index=int(st.session_state.profile_data.get('h_in', 10)))
-        
-        waist_in = multi_step_input("Waist (in)", "waist_in", 20.0, 70.0, 0.5, 5.0)
-        pct_bft = multi_step_input("Body Fat %", "pct_bft", 3.0, 60.0, 0.5, 5.0)
-        sys_bp = multi_step_input("Systolic BP", "sys", 80.0, 200.0, 1.0, 5.0)
-        dia_bp = multi_step_input("Diastolic BP", "dia", 40.0, 120.0, 1.0, 5.0)
-        pulse = multi_step_input("Pulse", "pulse", 40.0, 150.0, 1.0, 5.0)
+    chrono_age = st.number_input("Chronological Age", 18, 100, int(st.session_state.profile_data.get('age', 45)))
+    weight_lb = multi_step_input("Weight (lbs)", "weight", 80.0, 500.0, 1.0, 5.0)
+    
+    st.write("**Height**")
+    h_ft = st.selectbox("Feet", range(4, 9), index=(int(st.session_state.profile_data.get('h_ft', 5)) - 4))
+    h_in = st.selectbox("Inches", range(12), index=int(st.session_state.profile_data.get('h_in', 10)))
+    
+    waist_in = multi_step_input("Waist (in)", "waist_in", 20.0, 70.0, 0.5, 5.0)
+    pct_bft = multi_step_input("Body Fat %", "pct_bft", 3.0, 60.0, 0.5, 5.0)
+    sys_bp = multi_step_input("Systolic BP", "sys", 80.0, 200.0, 1.0, 5.0)
+    dia_bp = multi_step_input("Diastolic BP", "dia", 40.0, 120.0, 1.0, 5.0)
+    pulse = multi_step_input("Pulse", "pulse", 40.0, 150.0, 1.0, 5.0)
 
+    st.divider()
     st.markdown("### 🩺 Lab Markers")
-    with st.container():
-        lab_crp = multi_step_input("CRP", "crp", 0.0, 15.0, 0.1, 1.0)
-        lab_trig = multi_step_input("Triglycerides", "trig", 0.0, 500.0, 1.0, 10.0)
-        lab_ldl = multi_step_input("LDL", "ldl", 0.0, 350.0, 1.0, 10.0)
-        lab_hdl = multi_step_input("HDL", "hdl", 0.0, 150.0, 1.0, 10.0)
-        lab_gluc = multi_step_input("Glucose", "gluc", 0.0, 300.0, 1.0, 10.0)
-        lab_alb = multi_step_input("Albumin", "alb", 0.0, 6.0, 0.1, 0.5)
-        lab_iron = multi_step_input("Iron", "iron", 0.0, 300.0, 1.0, 10.0)
+    def lab_toggle_input(label, key, m_key, min_v, max_v, s_s, s_l):
+        has_val = st.checkbox(f"Know my {label}?", value=st.session_state.profile_data.get(m_key, True), key=m_key)
+        val = multi_step_input(label, key, min_v, max_v, s_s, s_l, enabled=has_val)
+        return val, has_val
+
+    v_crp, h_crp = lab_toggle_input("CRP", "crp", "has_crp", 0.0, 15.0, 0.1, 1.0)
+    v_trig, h_trig = lab_toggle_input("Triglycerides", "trig", "has_trig", 0.0, 500.0, 1.0, 10.0)
+    v_ldl, h_ldl = lab_toggle_input("LDL", "ldl", "has_ldl", 0.0, 350.0, 1.0, 10.0)
+    v_hdl, h_hdl = lab_toggle_input("HDL", "hdl", "has_hdl", 0.0, 150.0, 1.0, 10.0)
+    v_gluc, h_gluc = lab_toggle_input("Glucose", "gluc", "has_gluc", 0.0, 300.0, 1.0, 10.0)
+    v_alb, h_alb = lab_toggle_input("Albumin", "alb", "has_alb", 0.0, 6.0, 0.1, 0.5)
+    v_iron, h_iron = lab_toggle_input("Iron", "iron", "has_iron", 0.0, 300.0, 1.0, 10.0)
 
 # --- PHYSICAL ACTIVITY ---
 st.subheader("🏆 Physical Activity & Fitness")
-col1, col2, col3 = st.columns(3)
+col1_pa, col2_pa, col3_pa = st.columns(3)
 DATASET_SPORTS = sorted(["BASKETBALL", "GARDENING", "YARD WORK", "WALKING", "WEIGHT LIFTING", "BICYCLING", "RUNNING", "AEROBICS", "PUSH-UPS", "FOOTBALL", "ROLLERBLADING", "BOWLING", "TENNIS", "DANCE", "SOCCER", "JOGGING", "STAIR CLIMBING", "SIT-UPS", "ROPE JUMPING", "HIKING", "SWIMMING", "BOXING", "MARTIAL ARTS", "GOLF", "VOLLEYBALL", "FISHING", "BASEBALL", "STRETCHING", "FRISBEE", "YOGA", "CHEERLEADING", "RACQUETBALL", "WRESTLING", "SOFTBALL", "HOCKEY", "TREADMILL", "SKIING", "SKATING", "SURFING", "SKATEBOARDING"])
 SPORTS_OPTIONS = ["None"] + [s.title() for s in DATASET_SPORTS]
 
-with col1:
+with col1_pa:
     s1 = st.selectbox("Activity 1", SPORTS_OPTIONS, key="s1")
     d1 = st.slider("Days/Week (1)", 0, 7, int(st.session_state.get('d1', 5)))
     i1 = st.select_slider("Intensity (1)", ["Light", "Moderate", "Vigorous"], value="Moderate")
-with col2:
+with col2_pa:
     s2 = st.selectbox("Activity 2", SPORTS_OPTIONS, key="s2")
     d2 = st.slider("Days/Week (2)", 0, 7, int(st.session_state.get('d2', 0)))
     i2 = st.select_slider("Intensity (2)", ["Light", "Moderate", "Vigorous"], value="Moderate")
-with col3:
+with col3_pa:
     s3 = st.selectbox("Activity 3", SPORTS_OPTIONS, key="s3")
     d3 = st.slider("Days/Week (3)", 0, 7, int(st.session_state.get('d3', 0)))
     i3 = st.select_slider("Intensity (3)", ["Light", "Moderate", "Vigorous"], value="Moderate")
@@ -252,29 +263,31 @@ if st.button("🚀 CALCULATE BIOLOGICAL AGE", use_container_width=True):
         weight_kg = weight_lb * 0.453592
         height_cm = (h_ft * 30.48) + (h_in * 2.54)
         bmi = weight_kg / ((height_cm/100)**2)
+        MARKER_DEFAULTS = {'trig': 80, 'ldl': 90, 'hdl': 60, 'gluc': 88, 'crp': 0.1, 'alb': 4.5, 'iron': 100}
         
         input_dict = {f: 0.0 for f in feature_names}
-        input_dict['bpsys'] = sys_bp
-        input_dict['bpdia'] = dia_bp
-        input_dict['bmxwt'] = weight_kg
-        input_dict['bmxht'] = height_cm
-        input_dict['bmi'] = bmi
-        input_dict['bmxpulse'] = pulse
-        input_dict['waist'] = waist_in * 2.54
-        input_dict['pct_bft'] = pct_bft
+        input_dict['bpsys'], input_dict['bpdia'] = sys_bp, dia_bp
+        input_dict['bmxwt'], input_dict['bmxht'] = weight_kg, height_cm
+        input_dict['bmi'], input_dict['bmxpulse'] = bmi, pulse
+        input_dict['waist'], input_dict['pct_bft'] = waist_in * 2.54, pct_bft
+        
+        input_dict['crp'] = v_crp if h_crp else MARKER_DEFAULTS['crp']
+        input_dict['trig'] = v_trig if h_trig else MARKER_DEFAULTS['trig']
+        input_dict['ldl'] = v_ldl if h_ldl else MARKER_DEFAULTS['ldl']
+        input_dict['hdl'] = v_hdl if h_hdl else MARKER_DEFAULTS['hdl']
+        input_dict['gluc'] = v_gluc if h_gluc else MARKER_DEFAULTS['gluc']
+        input_dict['alb'] = v_alb if h_alb else MARKER_DEFAULTS['alb']
+        input_dict['iron'] = v_iron if h_iron else MARKER_DEFAULTS['iron']
         
         df_in = pd.DataFrame([input_dict])[feature_names]
         try: df_in = pd.DataFrame(scaler.transform(df_in), columns=feature_names)
         except: pass
-        
         bio_prediction = model.predict(df_in)[0]
         st.metric("Biological Age Estimate", f"{bio_prediction:.1f} yrs", delta=f"{bio_prediction - chrono_age:.1f} yrs", delta_color="inverse")
-    else:
-        st.error("Model assets missing.")
+    else: st.error("Model assets missing.")
 
 if st.button("💾 SAVE THIS PROFILE", use_container_width=True):
     if len(st.session_state.cur_initials) == 3:
-        # Save current state
-        final_save = {k: v for k, v in st.session_state.items() if k in DEFAULT_STATE}
+        final_save = {k: st.session_state[k] for k in DEFAULT_STATE.keys() if k in st.session_state}
         save_profile(final_save, st.session_state.cur_initials, st.session_state.cur_birth_year)
-        st.success(f"Profile for {st.session_state.cur_initials} saved successfully!")
+        st.success(f"Profile for {st.session_state.cur_initials} saved!")
