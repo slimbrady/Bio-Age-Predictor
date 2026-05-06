@@ -217,6 +217,21 @@ with col_g1: v_walk = st.slider("Walking Speed (mph)", 1.5, 5.0, float(st.sessio
 with col_g2: p_run = st.select_slider("Running Pace (min/mi)", options=[f"{m}:{s:02d}" for m in range(5, 16) for s in [0, 30]], value="9:00", key="run_sl")
 with col_g3: v_vo2 = st.slider("VO2 Max Value", 15.0, 75.0, float(st.session_state.profile_data.get('vo2', 42.0)), 0.5, key="vo2_sl")
 
+st.markdown("### 🏃‍♂️ Sports & Activity Frequencies")
+col_s1, col_s2, col_s3 = st.columns(3)
+with col_s1:
+    s1 = st.selectbox("Primary Activity", ["Walking", "Running", "Cycling", "Swimming", "Weightlifting", "Tennis", "Basketball", "Soccer", "Other", "None"], index=0)
+    d1 = st.slider("Days/Week (Primary)", 0, 7, 5)
+    i1 = st.select_slider("Intensity (Primary)", options=["Low", "Moderate", "Vigorous"], value="Moderate")
+with col_s2:
+    s2 = st.selectbox("Secondary Activity", ["Walking", "Running", "Cycling", "Swimming", "Weightlifting", "Tennis", "Basketball", "Soccer", "Other", "None"], index=9)
+    d2 = st.slider("Days/Week (Secondary)", 0, 7, 0)
+    i2 = st.select_slider("Intensity (Secondary)", options=["Low", "Moderate", "Vigorous"], value="Moderate")
+with col_s3:
+    s3 = st.selectbox("Other Sport/Activity", ["Walking", "Running", "Cycling", "Swimming", "Weightlifting", "Tennis", "Basketball", "Soccer", "Other", "None"], index=9)
+    d3 = st.slider("Days/Week (Other)", 0, 7, 0)
+    i3 = st.select_slider("Intensity (Other)", options=["Low", "Moderate", "Vigorous"], value="Moderate")
+
 if st.button("🚀 CALCULATE BIOLOGICAL AGE", type="primary", use_container_width=True):
     model, scaler, feature_names = load_assets()
     if model:
