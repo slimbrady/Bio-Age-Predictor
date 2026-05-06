@@ -2,7 +2,7 @@
 
 This professional health-tech application predicts a user's **Biological Age** and **Mortality Risk** using machine learning models (XGBoost, ANN) trained on the **NHANES (National Health and Nutrition Examination Survey)** dataset.
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)]([https://streamlit.io](https://realagepredictor.streamlit.app/))
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)]([https://streamlit.io](https://realagepredictor.streamlit.app/)
 
 
 ## 🚀 Features
