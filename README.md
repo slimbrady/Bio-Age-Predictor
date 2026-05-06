@@ -1,6 +1,6 @@
 # 🧬 Biological Age & Longevity Predictor
 
-This professional health-tech application predicts a user's **Biological Age** and **Mortality Risk** using machine learning models (XGBoost) trained on the **NHANES (National Health and Nutrition Examination Survey)** dataset.
+This professional health-tech application predicts a user's **Biological Age** and **Mortality Risk** using machine learning models (XGBoost, ANN) trained on the **NHANES (National Health and Nutrition Examination Survey)** dataset.
 
 ## 🚀 Features
 - **Predictive Modeling**: Uses XGBoost to estimate biological age based on blood markers, vitals, and physical activity.
