@@ -214,7 +214,20 @@ with st.sidebar:
 st.subheader("🏆 Fitness & Mobility Indicators")
 col_g1, col_g2, col_g3 = st.columns(3)
 with col_g1: v_walk = st.slider("Walking Speed (mph)", 1.5, 5.0, float(st.session_state.profile_data.get('walk_speed', 3.1)), 0.1, key="walk_sl")
-with col_g2: p_run = st.select_slider("Running Pace (min/mi)", options=[f"{m}:{s:02d}" for m in range(5, 16) for s in [0, 30]], value="9:00", key="run_sl")
+with col_g2:
+    # Run pace: 5:00 - 15:45 min/mi, 15-sec increments
+    run_pace_options = [f"{m}:{s:02d}" for m in range(5, 16) for s in [0, 15, 30, 45]]
+    # Default to 9:00 if not in profile, clamp to valid options
+    default_run = st.session_state.profile_data.get('run_pace', '9:00')
+    if default_run not in run_pace_options:
+        default_run = '9:00'
+    p_run = st.select_slider("Running Pace (min/mi)", options=run_pace_options, value=default_run, key="run_sl")
+    # Convert run pace → run speed mph, display it
+    try:
+        rm, rs = map(int, p_run.split(':'))
+        run_speed_mph = 60.0 / (rm + rs/60.0)
+        st.caption(f"≈ {run_speed_mph:.1f} mph")
+    except: run_speed_mph = None
 with col_g3: v_vo2 = st.slider("VO2 Max Value", 15.0, 75.0, float(st.session_state.profile_data.get('vo2', 42.0)), 0.5, key="vo2_sl")
 
 st.markdown("### 🏃‍♂️ Sports & Activity Frequencies")
@@ -252,7 +265,21 @@ if st.button("🚀 CALCULATE BIOLOGICAL AGE", type="primary", use_container_widt
         # Fitness / mobility — map UI → NHANES model features
         # walk_t: NHANES 20-ft walk test time (sec). Approx from walking speed.
         # 20 ft ≈ 0.003788 mi. time(sec) = distance/speed * 3600
-        walk_t_sec = (0.003788 / max(v_walk, 0.5)) * 3600
+        # If user entered a run pace, estimate walk speed from it too.
+        # Typical walk/run speed ratio ≈ 0.38-0.45 for fit adults.
+        # Use the faster of: direct walk_speed, or run_speed * 0.40
+        try:
+            rm, rs = map(int, p_run.split(':'))
+            run_speed_mph = 60.0 / (rm + rs/60.0)
+        except:
+            run_speed_mph = None
+        # Estimate walk speed from run pace (run * 0.40), use max of walk_slider vs run-derived
+        # This way a fast runner isn't penalized by a conservative walk_speed slider
+        walk_mph_est = run_speed_mph * 0.40 if run_speed_mph else v_walk
+        effective_walk_mph = max(v_walk, walk_mph_est)
+        # Clamp to slider range
+        effective_walk_mph = min(max(effective_walk_mph, 1.5), 5.0)
+        walk_t_sec = (0.003788 / max(effective_walk_mph, 0.5)) * 3600
         in_d['walk_t'] = walk_t_sec
         in_d['vo2_max'] = v_vo2
         # Top model features not in UI — use population-typical defaults
