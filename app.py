@@ -237,7 +237,62 @@ if st.button("🚀 CALCULATE BIOLOGICAL AGE", type="primary", use_container_widt
     if model:
         in_d = {f: 0.0 for f in feature_names}
         w_kg, h_cm = w_lb * 0.453592, (h_ft * 30.48) + (h_in * 2.54)
-        in_d.update({'bpsys': sys, 'bpdia': dia, 'bmxwt': w_kg, 'bmxht': h_cm, 'bmi': w_kg/((h_cm/100)**2), 'bmxpulse': pul, 'waist': waist*2.54, 'pct_bft': bft, 'crp': v_crp, 'trig': v_trig, 'ldl': v_ldl, 'hdl': v_hdl, 'gluc': v_gluc, 'alb': v_alb, 'iron': v_iron})
+        bmi_val = w_kg/((h_cm/100)**2)
+        # Map UI inputs → model feature names (NHANES schema)
+        # Vitals
+        in_d.update({
+            'sys_bp': sys, 'dia_bp': dia,
+            'wtkg': w_kg, 'ht_cm': h_cm, 'bmi': bmi_val,
+            'pulse': pul,
+            'waist': waist*2.54, 'pct_bft': bft,
+            # Labs
+            'crp': v_crp, 'trig': v_trig, 'ldl': v_ldl, 'hdl': v_hdl,
+            'gluc': v_gluc, 'alb': v_alb, 'iron': v_iron,
+        })
+        # Fitness / mobility — map UI → NHANES model features
+        # walk_t: NHANES 20-ft walk test time (sec). Approx from walking speed.
+        # 20 ft ≈ 0.003788 mi. time(sec) = distance/speed * 3600
+        walk_t_sec = (0.003788 / max(v_walk, 0.5)) * 3600
+        in_d['walk_t'] = walk_t_sec
+        in_d['vo2_max'] = v_vo2
+        # Top model features not in UI — use population-typical defaults
+        # so predictions aren't skewed by 0-defaults
+        # cogn: cognitive score, tel: telomere length proxy,
+        # blnc_3: 3-sec balance test, sob_stairs: SOB on stairs, swelling: leg swelling
+        # Defaults set to healthy/normal population means
+        in_d['cogn'] = in_d.get('cogn', 0.0) or 0.0  # z-score, 0 = population mean
+        in_d['tel'] = 1.0       # telomere T/S ratio, ~1.0 is normal
+        in_d['blnc_3'] = 1.0    # 1 = pass 3-sec balance
+        in_d['sob_stairs'] = 0.0  # 0 = no SOB
+        in_d['swelling'] = 0.0    # 0 = no leg swelling
+        # Activity mapping: UI sports → model ACT_* features + activity counters
+        # Map activity names to model feature names
+        act_map = {
+            'Weightlifting': 'ACT_WEIGHT LIFTING',
+            'Walking': 'ACT_WALKING',
+            'Running': 'ACT_RUNNING',
+            'Cycling': 'ACT_BICYCLING',
+            'Swimming': 'ACT_SWIMMING',
+            'Tennis': 'ACT_TENNIS',
+            'Basketball': 'ACT_BASKETBALL',
+            'Soccer': 'ACT_SOCCER',
+        }
+        # Set activity flags (days/week as weight)
+        for sport, days, inten in [(s1, d1, i1), (s2, d2, i2), (s3, d3, i3)]:
+            if sport != 'None' and sport in act_map:
+                feat = act_map[sport]
+                if feat in in_d:
+                    in_d[feat] = max(in_d[feat], float(days))
+        # Activity frequency counters (days per 30 days)
+        for sport, days, inten in [(s1, d1, i1), (s2, d2, i2), (s3, d3, i3)]:
+            if sport != 'None' and days > 0:
+                days_30 = days * 30 / 7
+                if inten == 'Vigorous':
+                    in_d['vig_act_30'] = in_d.get('vig_act_30', 0) + days_30
+                elif inten == 'Moderate':
+                    in_d['mod_act_30'] = in_d.get('mod_act_30', 0) + days_30
+                if sport == 'Weightlifting':
+                    in_d['strength_30'] = in_d.get('strength_30', 0) + days_30
         
         def get_pred(data_dict):
             df = pd.DataFrame([data_dict])[feature_names]
@@ -249,11 +304,15 @@ if st.button("🚀 CALCULATE BIOLOGICAL AGE", type="primary", use_container_widt
         
         with c2:
             st.markdown("### 🎯 Longevity Insights")
+            # Test real feature impacts (using correct feature names)
+            # walk_t is the #1 predictor (50.8% importance) — derived from v_walk
+            walk_t_faster = (0.003788 / max(min(v_walk + 0.5, 5.0), 0.5)) * 3600
             imp = [
                 (pred - get_pred({**in_d, 'waist': (waist-2)*2.54}), "Reduce waist by 2 inches"),
-                (pred - get_pred({**in_d, 'bpsys': sys-10}), "Lower Systolic BP by 10 pts"),
-                (1.5 if v_walk < 3.5 else 0.4, "Target Walking Speed: 3.5+ MPH"),
+                (pred - get_pred({**in_d, 'sys_bp': sys-10}), "Lower Systolic BP by 10 pts"),
+                (pred - get_pred({**in_d, 'walk_t': walk_t_faster}), "Improve walking speed by 0.5 MPH"),
+                (pred - get_pred({**in_d, 'ldl': max(v_ldl-20, 50)}), "Lower LDL by 20 mg/dL"),
                 (0.9 if v_vo2 < 45 else 0.2, "Improve VO2 Max by 5 pts")
             ]
             for val, desc in sorted(imp, key=lambda x: x[0], reverse=True)[:3]:
-                if val > 0.1: st.markdown(f'<div class="recommendation-card"><strong>-{val:.1f} yr</strong>: {desc}</div>', unsafe_allow_html=True)
+                if val > 0.05: st.markdown(f'<div class="recommendation-card"><strong>-{val:.1f} yr</strong>: {desc}</div>', unsafe_allow_html=True)
