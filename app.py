@@ -153,7 +153,9 @@ DEFAULT_STATE = {
     's3': "None", 'd3': 0, 'i3': "Moderate",
     'has_crp': False, 'has_trig': False, 'has_ldl': False, 'has_hdl': False,
     'has_gluc': False, 'has_alb': False, 'has_iron': False,
-    'walk_speed': 3.1, 'run_pace': "9:00"
+    'walk_speed': 3.1, 'run_pace': "9:00",
+    # Mobility & Health Screen (NHANES)
+    'blnc_3': 1, 'swelling': 0, 'sob_stairs': 0,
 }
 MARKER_DEFAULTS = {'trig': 80.0, 'ldl': 90.0, 'hdl': 60.0, 'gluc': 88.0, 'crp': 0.1, 'alb': 4.5, 'iron': 100.0}
 
@@ -230,20 +232,103 @@ with col_g2:
     except: run_speed_mph = None
 with col_g3: v_vo2 = st.slider("VO2 Max Value", 15.0, 75.0, float(st.session_state.profile_data.get('vo2', 42.0)), 0.5, key="vo2_sl")
 
+# All 48 sports supported by the model, ordered by feature importance
+# (top ones first so users find common activities quickly)
+SPORTS_LIST = [
+    "None",
+    # Tier 1: >0.1% importance
+    "Walking", "Running", "Cycling", "Swimming", "Weightlifting",
+    "Tennis", "Basketball", "Soccer",
+    "Dance",
+    "Racquetball",
+    "Football",
+    "Stretching",
+    "Gardening",
+    "Treadmill",
+    "Stair Climbing",
+    "Yard Work",
+    "Rollerblading",
+    "Volleyball",
+    # Tier 2: 0.01-0.1% importance
+    "Fishing",
+    "Golf",
+    "Push-ups",
+    "Rowing",
+    "Baseball",
+    "Cross-Country Skiing",
+    "Softball",
+    "Hiking",
+    "Horseback Riding",
+    "Kayaking",
+    "Trampoline",
+    "Sit-ups",
+    "Bowling",
+    "Ice Skating",
+    "Boxing",
+    # Tier 3: 0% importance (model ignores, but included for completeness)
+    "Aerobics",
+    "Jogging",
+    "Rope Jumping",
+    "Martial Arts",
+    "Frisbee",
+    "Yoga",
+    "Cheerleading / Gymnastics",
+    "Wrestling",
+    "Hockey",
+    "Surfing",
+    "Skateboarding",
+    "Hunting",
+    "Children's Games",
+    "Downhill Skiing",
+    "Other",
+]
+
 st.markdown("### 🏃‍♂️ Sports & Activity Frequencies")
 col_s1, col_s2, col_s3 = st.columns(3)
 with col_s1:
-    s1 = st.selectbox("Primary Activity", ["Walking", "Running", "Cycling", "Swimming", "Weightlifting", "Tennis", "Basketball", "Soccer", "Other", "None"], index=0)
-    d1 = st.slider("Days/Week (Primary)", 0, 7, 5)
-    i1 = st.select_slider("Intensity (Primary)", options=["Low", "Moderate", "Vigorous"], value="Moderate")
+    s1 = st.selectbox("Primary Activity", SPORTS_LIST, index=SPORTS_LIST.index(st.session_state.profile_data.get('s1', 'Walking')) if st.session_state.profile_data.get('s1', 'Walking') in SPORTS_LIST else 1)
+    d1 = st.slider("Days/Week (Primary)", 0, 7, int(st.session_state.profile_data.get('d1', 5)))
+    i1 = st.select_slider("Intensity (Primary)", options=["Low", "Moderate", "Vigorous"], value=st.session_state.profile_data.get('i1', "Moderate"))
 with col_s2:
-    s2 = st.selectbox("Secondary Activity", ["Walking", "Running", "Cycling", "Swimming", "Weightlifting", "Tennis", "Basketball", "Soccer", "Other", "None"], index=9)
-    d2 = st.slider("Days/Week (Secondary)", 0, 7, 0)
-    i2 = st.select_slider("Intensity (Secondary)", options=["Low", "Moderate", "Vigorous"], value="Moderate")
+    s2 = st.selectbox("Secondary Activity", SPORTS_LIST, index=SPORTS_LIST.index(st.session_state.profile_data.get('s2', 'None')) if st.session_state.profile_data.get('s2', 'None') in SPORTS_LIST else 0)
+    d2 = st.slider("Days/Week (Secondary)", 0, 7, int(st.session_state.profile_data.get('d2', 0)))
+    i2 = st.select_slider("Intensity (Secondary)", options=["Low", "Moderate", "Vigorous"], value=st.session_state.profile_data.get('i2', "Moderate"))
 with col_s3:
-    s3 = st.selectbox("Other Sport/Activity", ["Walking", "Running", "Cycling", "Swimming", "Weightlifting", "Tennis", "Basketball", "Soccer", "Other", "None"], index=9)
-    d3 = st.slider("Days/Week (Other)", 0, 7, 0)
-    i3 = st.select_slider("Intensity (Other)", options=["Low", "Moderate", "Vigorous"], value="Moderate")
+    s3 = st.selectbox("Other Sport/Activity", SPORTS_LIST, index=SPORTS_LIST.index(st.session_state.profile_data.get('s3', 'None')) if st.session_state.profile_data.get('s3', 'None') in SPORTS_LIST else 0)
+    d3 = st.slider("Days/Week (Other)", 0, 7, int(st.session_state.profile_data.get('d3', 0)))
+    i3 = st.select_slider("Intensity (Other)", options=["Low", "Moderate", "Vigorous"], value=st.session_state.profile_data.get('i3', "Moderate"))
+
+# Mobility & Health Screen — top predictive features from NHANES
+st.markdown("### 🦶 Mobility & Health Screen")
+st.caption("These 3 questions account for ~5% of the model's prediction signal. Source: NHANES 1999-2004 (CDC)")
+col_m1, col_m2, col_m3 = st.columns(3)
+with col_m1:
+    blnc_default = int(st.session_state.profile_data.get('blnc_3', 1))
+    blnc_3 = st.radio(
+        "Balance test: Stand on foam pad, eyes open, 30 sec",
+        options=[1, 0],
+        format_func=lambda x: "✅ Pass — stayed balanced" if x == 1 else "❌ Fail — lost balance / needed support",
+        index=0 if blnc_default == 1 else 1,
+        help="NHANES Modified Romberg Test, Condition 3. Stand on a foam cushion (or pillow) with eyes open for 30 seconds, arms at sides. Fail if you need to step, open your eyes (n/a, eyes are open), move arms/feet to stabilize, or start to fall."
+    )
+with col_m2:
+    swelling_default = int(st.session_state.profile_data.get('swelling', 0))
+    swelling = st.radio(
+        "Swelling in feet or ankles?",
+        options=[0, 1],
+        format_func=lambda x: "No" if x == 0 else "Yes",
+        index=swelling_default,
+        help="NHANES CDQ080: Have you had swelling of feet or ankles?"
+    )
+with col_m3:
+    sob_default = int(st.session_state.profile_data.get('sob_stairs', 0))
+    sob_stairs = st.radio(
+        "Shortness of breath hurrying / slight hill?",
+        options=[0, 1],
+        format_func=lambda x: "No" if x == 0 else "Yes",
+        index=sob_default,
+        help="NHANES CDQ010: Have you had shortness of breath either when hurrying on the level or walking up a slight hill?"
+    )
 
 if st.button("🚀 CALCULATE BIOLOGICAL AGE", type="primary", use_container_width=True):
     model, scaler, feature_names = load_assets()
@@ -282,19 +367,17 @@ if st.button("🚀 CALCULATE BIOLOGICAL AGE", type="primary", use_container_widt
         walk_t_sec = (0.003788 / max(effective_walk_mph, 0.5)) * 3600
         in_d['walk_t'] = walk_t_sec
         in_d['vo2_max'] = v_vo2
-        # Top model features not in UI — use population-typical defaults
-        # so predictions aren't skewed by 0-defaults
-        # cogn: cognitive score, tel: telomere length proxy,
-        # blnc_3: 3-sec balance test, sob_stairs: SOB on stairs, swelling: leg swelling
-        # Defaults set to healthy/normal population means
-        in_d['cogn'] = in_d.get('cogn', 0.0) or 0.0  # z-score, 0 = population mean
-        in_d['tel'] = 1.0       # telomere T/S ratio, ~1.0 is normal
-        in_d['blnc_3'] = 1.0    # 1 = pass 3-sec balance
-        in_d['sob_stairs'] = 0.0  # 0 = no SOB
-        in_d['swelling'] = 0.0    # 0 = no leg swelling
+        # Mobility & Health Screen — from UI (NHANES CDQ/BAQ)
+        # cogn/tel not in UI — use population-typical defaults
+        in_d['cogn'] = 0.0          # cognitive score z-score, 0 = population mean
+        in_d['tel'] = 1.0           # telomere T/S ratio, ~1.0 is normal
+        in_d['blnc_3'] = float(blnc_3)        # 1 = pass, 0 = fail
+        in_d['sob_stairs'] = float(sob_stairs)  # 0 = no, 1 = yes
+        in_d['swelling'] = float(swelling)    # 0 = no, 1 = yes
         # Activity mapping: UI sports → model ACT_* features + activity counters
-        # Map activity names to model feature names
+        # Full mapping: all 48 sports supported by the NHANES model
         act_map = {
+            # Already in original UI (8 sports)
             'Weightlifting': 'ACT_WEIGHT LIFTING',
             'Walking': 'ACT_WALKING',
             'Running': 'ACT_RUNNING',
@@ -303,6 +386,49 @@ if st.button("🚀 CALCULATE BIOLOGICAL AGE", type="primary", use_container_widt
             'Tennis': 'ACT_TENNIS',
             'Basketball': 'ACT_BASKETBALL',
             'Soccer': 'ACT_SOCCER',
+            # Added — Tier 1 (>0.1% importance)
+            'Dance': 'ACT_DANCE',
+            'Racquetball': 'ACT_RACQUETBALL',
+            'Football': 'ACT_FOOTBALL',
+            'Stretching': 'ACT_STRETCHING',
+            'Gardening': 'ACT_GARDENING',
+            'Treadmill': 'ACT_TREADMILL',
+            'Stair Climbing': 'ACT_STAIR CLIMBING',
+            'Yard Work': 'ACT_YARD WORK',
+            'Rollerblading': 'ACT_ROLLERBLADING',
+            'Volleyball': 'ACT_VOLLEYBALL',
+            # Added — Tier 2 (0.01-0.1% importance)
+            'Fishing': 'ACT_FISHING',
+            'Golf': 'ACT_GOLF',
+            'Push-ups': 'ACT_PUSH-UPS',
+            'Rowing': 'ACT_ROWING',
+            'Baseball': 'ACT_BASEBALL',
+            'Cross-Country Skiing': 'ACT_SKIING - CROSS COUNTRY',
+            'Softball': 'ACT_SOFTBALL',
+            'Hiking': 'ACT_HIKING',
+            'Horseback Riding': 'ACT_HORSEBACK RIDING',
+            'Kayaking': 'ACT_KAYAKING',
+            'Trampoline': 'ACT_TRAMPOLINE JUMPING',
+            'Sit-ups': 'ACT_SIT-UPS',
+            'Bowling': 'ACT_BOWLING',
+            'Ice Skating': 'ACT_SKATING',
+            'Boxing': 'ACT_BOXING',
+            # Added — Tier 3 (0% importance, included for completeness)
+            'Aerobics': 'ACT_AEROBICS',
+            'Jogging': 'ACT_JOGGING',
+            'Rope Jumping': 'ACT_ROPE JUMPING',
+            'Martial Arts': 'ACT_MARTIAL ARTS',
+            'Frisbee': 'ACT_FRISBEE',
+            'Yoga': 'ACT_YOGA',
+            'Cheerleading / Gymnastics': 'ACT_CHEERLEADING AND GYMNASTICS',
+            'Wrestling': 'ACT_WRESTLING',
+            'Hockey': 'ACT_HOCKEY',
+            'Surfing': 'ACT_SURFING',
+            'Skateboarding': 'ACT_SKATEBOARDING',
+            'Hunting': 'ACT_HUNTING',
+            "Children's Games": "ACT_CHILDREN'S GAMES",
+            'Downhill Skiing': 'ACT_SKIING - DOWNHILL',
+            'Other': 'ACT_OTHER',
         }
         # Set activity flags (days/week as weight)
         for sport, days, inten in [(s1, d1, i1), (s2, d2, i2), (s3, d3, i3)]:
